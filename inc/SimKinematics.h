@@ -60,6 +60,8 @@ public:
     double ReconstructBeamEnergyFromLabKinematics(double T3, double theta3LabRads);
     double ReconstructExcitationEnergy(double argT3, double argTheta3LabRads);
     double ComputeTheoreticalT3(double argTheta3LabRads, const std::string& sol = {"pos"});
+    double ComputeMissingMass(double argT3, double argTheta3LabRads, double argPhi3Rads, double Tbeam,
+                              double& retTRecoil, ThreeVector& retPRecoil);
     
 	void Print() const;
 

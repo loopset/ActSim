@@ -244,3 +244,27 @@ double SimKinematics::ComputeTheoreticalT3(double argTheta3LabRads, const std::s
         throw std::runtime_error("sol arg only admits two options: pos or neg!");
     }
 }
+
+double SimKinematics::ComputeMissingMass(double argT3, double argTheta3LabRads, double argPhi3Rads, double Tbeam,
+                                         double& retTRecoil, ThreeVector& retPRecoil)
+{
+    FourVector initialLab {};
+    double E1Lab { T1Lab + m1};
+    double p1Lab { TMath::Sqrt(E1Lab * E1Lab - m1 * m1)};
+    FourVector newP1Lab { p1Lab, 0.0, 0.0, E1Lab};//beam along X axis! ACTAR TPC reference frame!
+    initialLab = newP1Lab + P2Lab;
+    
+    //determine mass of the missing 4th particle
+    double E3Lab {argT3 + m3};
+    double p3Lab {TMath::Sqrt(E3Lab * E3Lab - m3 * m3)};
+    FourVector final3Lab {p3Lab * TMath::Cos(argTheta3LabRads),
+        p3Lab * TMath::Sin(argTheta3LabRads) * TMath::Sin(argPhi3Rads),
+        p3Lab * TMath::Sin(argTheta3LabRads) * TMath::Cos(argPhi3Rads),
+        E3Lab};
+    auto missingVector {initialLab - final3Lab};
+    double missingMass {missingVector.M()};
+    //return recoil kinetic energy
+    retTRecoil = initialLab.E() - final3Lab.E() - m4;//assumming Eex = 0.0
+    retPRecoil = missingVector.Vect();
+    return missingMass;
+}

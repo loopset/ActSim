@@ -4,6 +4,7 @@
 #include <Math/Vector3Dfwd.h>
 #include <Math/Vector4Dfwd.h>
 #include <Math/GenVector/BoostX.h>
+#include <string>
 #include <tuple>
 #include <utility>
 
@@ -15,38 +16,38 @@ public:
 	using LorentzBoostX = ROOT::Math::BoostX;
 	
 private:
-	double m1 {};
-	double m2 {};
-	double m3 {};
-	double m4 {};
-	double Eex {};
-	double T1Lab {};
-	double gamma {};
-	double beta {};
-    double Qvalue {};
+	double fm1 {};
+	double fm2 {};
+	double fm3 {};
+	double fm4 {};
+	double fEex {};
+	double fT1Lab {};
+	double fGamma {};
+	double fBeta {};
+    double fQvalue {};
 
 	//vectors
-	FourVector P1Lab {};
-	FourVector P2Lab {};
-	FourVector PInitialLab {};
-	FourVector PInitialCM  {};
-	FourVector P3CM {};
-    FourVector P4CM {};
-	FourVector P3Lab {};
-    FourVector P4Lab {};
+	FourVector fP1Lab {};
+	FourVector fP2Lab {};
+	FourVector fPInitialLab {};
+	FourVector fPInitialCM  {};
+	FourVector fP3CM {};
+    FourVector fP4CM {};
+	FourVector fP3Lab {};
+    FourVector fP4Lab {};
 	LorentzBoostX BoostTransformation {};
 	//auxiliar to avoid calling member functions every time
-	double theta3CM {};
-    double theta4CM {};
-    double phi3CM {};
-    double phi4CM {};
-	double Ecm {};
-	double T3Lab {};
-    double T4Lab {};
-	double theta3Lab {};
-    double theta4Lab {};
-    double phi3Lab {};
-    double phi4Lab {};
+	double fTheta3CM {};
+    double fTheta4CM {};
+    double fPhi3CM {};
+    double fPhi4CM {};
+	double fEcm {};
+	double fT3Lab {};
+    double fT4Lab {};
+	double fTheta3Lab {};
+    double fTheta4Lab {};
+    double fPhi3Lab {};
+    double fPhi4Lab {};
 
 public:
     SimKinematics() = default;
@@ -62,30 +63,31 @@ public:
     double ComputeTheoreticalT3(double argTheta3LabRads, const std::string& sol = {"pos"});
     double ComputeMissingMass(double argT3, double argTheta3LabRads, double argPhi3Rads, double Tbeam,
                               double& retTRecoil, ThreeVector& retPRecoil);
+    double ComputeTheoreticalTheta4(double argTheta3LabRads, const std::string& sol = {"pos"});
     
 	void Print() const;
 
 	//getters
-    double GetT1Lab() const { return T1Lab; }
-	double GetT3Lab() const { return T3Lab; }
-    double GetT4Lab() const { return T4Lab; }
-	double GetTheta3Lab() const { return theta3Lab; }
-    double GetTheta4Lab() const { return theta4Lab; }
-    double GetPhi3Lab() const { return phi3Lab; }
-    double GetPhi4Lab() const { return phi4Lab; }
-	double GetTheta3CM() const { return theta3CM; }
-    double GetTheta4CM() const { return theta4CM; }
-    double GetPhi3CM() const { return phi3CM; }
-    double GetPhi4CM() const { return phi4CM; }
-	double GetBeta() const { return beta; }
-	double GetGamma() const { return gamma; }
-    double GetECM() const { return Ecm; }
-    double GetEex() const { return Eex; }
+    double GetT1Lab() const { return fT1Lab; }
+	double GetT3Lab() const { return fT3Lab; }
+    double GetT4Lab() const { return fT4Lab; }
+	double GetTheta3Lab() const { return fTheta3Lab; }
+    double GetTheta4Lab() const { return fTheta4Lab; }
+    double GetPhi3Lab() const { return fPhi3Lab; }
+    double GetPhi4Lab() const { return fPhi4Lab; }
+	double GetTheta3CM() const { return fTheta3CM; }
+    double GetTheta4CM() const { return fTheta4CM; }
+    double GetPhi3CM() const { return fPhi3CM; }
+    double GetPhi4CM() const { return fPhi4CM; }
+	double GetBeta() const { return fBeta; }
+	double GetGamma() const { return fGamma; }
+    double GetECM() const { return fEcm; }
+    double GetEex() const { return fEex; }
     double GetMass(unsigned int index) const;
     std::tuple<double, double, double, double> GetMasses() const;
 	
 private:
-	void SetRecoilsCMKinematicsThrough3(double theta3CMRads, double phi3CMRads);
+	void SetRecoilsCMKinematicsThrough3(double fTheta3CMRads, double phi3CMRads);
     void SetRecoilsCMKinematicsThrough4(double theta4CMRads, double phi4CMRads);
 	void SetRecoil3LabKinematics();
     void SetRecoil4LabKinematics();

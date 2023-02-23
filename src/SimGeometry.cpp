@@ -22,6 +22,64 @@
 #include <tuple>
 #include <utility>
 
+SilAssembly::SilAssembly(unsigned int index, const SilUnit& unit, bool alongx, bool alongy)
+    : fIndex(index), fUnit(unit)
+{
+    if(alongx)
+        fIsAlongX = true;
+    else if(alongy)
+        fIsAlongY = true;
+    else if(alongy && alongx)
+        throw std::runtime_error("AlongX && AlongY not allowed!");
+    else
+        throw std::runtime_error("No Along[X,Y] was set!");
+}
+
+void SilAssembly::SetOffsets(double xoffset, double yoffset)
+{
+    if(xoffset != -1)
+    {
+        fOffset.first = xoffset;
+        fHasXOffset = true;
+    }
+    if(yoffset != -1)
+    {
+        fOffset.second = yoffset;
+        fHasYOffset = true;
+    }
+}
+
+void DriftInfo::Print() const
+{
+    std::cout<<"== Drift Info =="<<'\n';
+    std::cout<<" X / 2 = "<<X<<" cm"<<'\n';
+    std::cout<<" Y / 2 = "<<Y<<" cm"<<'\n';
+    std::cout<<" Z / 2 = "<<Z<<" cm"<<'\n';
+    std::cout<<"==============="<<std::endl;
+}
+
+void SilUnit::Print() const
+{
+    std::cout<<"== SilUnit type "<<fIndex<<" =="<<'\n';
+    std::cout<<" Width / 2  = "<<fLengthX<<" cm"<<'\n';
+    std::cout<<" Length / 2 = "<<fLengthY<<" cm"<<'\n';
+    std::cout<<" Height / 2 = "<<fLengthZ<<" cm"<<'\n';
+    std::cout<<"==============="<<'\n';
+}
+
+void SilAssembly::Print() const
+{
+    std::cout<<"** SilAssembly number "<<fIndex<<" **"<<'\n';
+    std::cout<<"Using SilUnit = "<<fUnit.fIndex<<" with specs"<<'\n';
+    fUnit.Print();
+    std::cout<<" Placements = "<<'\n';
+    for(const auto& [index, place] : fPlacements)
+    {
+        std::cout<<"    i = "<<index<<" first = "<<place.first<<" second = "<<place.second<<" cm"<<'\n';
+    }
+    std::cout<<"****************************"<<std::endl;
+}
+
 SimGeometry::SimGeometry()
 {
     //init structures and materials
@@ -160,7 +218,82 @@ void SimGeometry::Construct()
     manager->SetCurrentNavigator(0);
 
     //and print
-    PrintGeometry();
+    //PrintGeometry();
+}
+
+void SimGeometry::ConstructPlus()
+{
+    //drift chamber
+    driftVol = manager->MakeBox("Drift",
+                                noneMedium,
+                                actar.X, actar.Y, actar.Z);//at center of world
+    driftVol->SetLineColor(kBlue);
+    topVol->AddNode(driftVol, 1);
+
+    //build silicon types
+    for(const auto& [index, ass] : fAssembliesDataMap)
+    {
+        const auto& silUnit {ass.fUnit};
+        unitSilVolMap[index] = manager->MakeBox(TString::Format("UnitSil%d", silUnit.fIndex),
+                                                noneMedium,
+                                                silUnit.fLengthX,
+                                                silUnit.fLengthY,
+                                                silUnit.fLengthZ);
+        unitSilVolMap.at(index)->SetLineColor(2 + index);
+    }
+    //and now assemblies!
+    //for rotations of silicons!!!
+    //only allowed by theta = 90 degrees by now
+    //a rotation of phi = 90 is also included for lateral assemblies
+    TGeoRotation nullRotation {"nullRotation", 0.0, 0.0, 0.0};
+    TGeoRotation siliconRot {"siliconRot", 0.0, 90.0, 0.0};
+    TGeoRotation lateralRot {"lateralRot", 90.0, 0.0, 0.0};
+    TGeoRotation sideRot    {"sideRot", 180.0, 0.0, 0.0};
+    for(const auto& [index, ass] : fAssembliesDataMap)
+    {
+        fAssembliesMap[index] = new TGeoVolumeAssembly(TString::Format("SiliconAssembly%d", index));
+        //and add its silicons
+        for(const auto& [silIndex, place] : ass.fPlacements)
+        {
+            TGeoTranslation trans {};
+            if(ass.fIsAlongX)
+                trans = {0., place.first, place.second};
+            if(ass.fIsAlongY)
+                trans = {place.first, 0., place.second};
+            fAssembliesMap.at(index)->AddNode(unitSilVolMap.at(index),
+                                              silIndex,
+                                              new TGeoCombiTrans(trans, ass.fIsAlongY ? lateralRot : nullRotation));
+        }
+        //placement of assembly
+        TGeoTranslation assemblyTrans {};
+        if(ass.fHasXOffset)
+            assemblyTrans = {actar.X + ass.fOffset.first, 0., 0.};
+        else if(ass.fHasYOffset)
+            assemblyTrans = {0., actar.Y + ass.fOffset.second, 0.};
+        else if(ass.fHasXOffset && ass.fHasYOffset)
+            assemblyTrans = {actar.X + ass.fOffset.first, actar.Y + ass.fOffset.second, 0.};
+        topVol->AddNode(fAssembliesMap.at(index),
+                        index,
+                        new TGeoCombiTrans(assemblyTrans, nullRotation));
+        //if it is mirrored
+        if(ass.fIsMirrored)//usuall
+        {
+            TGeoTranslation assemblyTrans2 {};
+            auto previous {assemblyTrans.GetTranslation()};
+            assemblyTrans2.SetDx(-1 * previous[0]);
+            assemblyTrans2.SetDy(-1 * previous[1]);
+            assemblyTrans2.SetDz(-1 * previous[2]);
+            topVol->AddNode(fAssembliesMap.at(index),
+                            -1 * index,
+                            new TGeoCombiTrans(assemblyTrans2, sideRot));
+        }
+    }
+    //and close geometry
+    manager->CloseGeometry();
+
+    //initialize navigator
+    navigator = new TGeoNavigator(manager);
+    manager->SetCurrentNavigator(0);
 }
 
 void SimGeometry::PrintGeometry()
@@ -170,6 +303,18 @@ void SimGeometry::PrintGeometry()
     std::cout<<"Unit silicon type 1 width: "<<silicons.unitX[1]<<" and plane "<<silicons.unitY[1]<<" x "<<silicons.unitZ[1]<<'\n';
     std::cout<<"Unit silicon type 2 width: "<<silicons.unitX[2]<<" and plane "<<silicons.unitY[2]<<" x "<<silicons.unitZ[2]<<'\n';
     std::cout<<"Silicons placed at driftX + "<<silicons.XOffset<<'\n';
+}
+
+void SimGeometry::PrintGeometryPlus() const
+{
+    std::cout<<std::fixed<<std::setprecision(3);
+    std::cout<<"ACTAR active volume: "<<'\n';
+    actar.Print();
+    std::cout<<"Silicon detectors: "<<'\n';
+    for(const auto& [index, ass] : fAssembliesDataMap)
+    {
+        ass.Print();
+    }
 }
 
 void SimGeometry::Draw()
@@ -272,12 +417,12 @@ void SimGeometry::WriteGeometry(std::string path, std::string fileName)
 {
     manager->Export((path + fileName + ".root").c_str());
 
-    //write parameters to file
-    auto* outFile = new TFile((path + "parameters_" + fileName + ".root").c_str(), "recreate");
-    outFile->cd();
-    outFile->WriteObject(&silicons, "silicons");
-    outFile->WriteObject(&actar, "drift");
-    outFile->Close();
-    delete outFile;
+    // //write parameters to file
+    // auto* outFile = new TFile((path + "parameters_" + fileName + ".root").c_str(), "recreate");
+    // outFile->cd();
+    // outFile->WriteObject(&silicons, "silicons");
+    // outFile->WriteObject(&actar, "drift");
+    // outFile->Close();
+    // delete outFile;
     
 }

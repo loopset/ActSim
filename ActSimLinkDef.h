@@ -20,6 +20,10 @@
 #pragma link C++ struct ExperimentInfo + ;
 #pragma link C++ struct SimulationParameters + ;
 
+///new geometry structs
+#pragma link C++ struct SilUnit + ;
+#pragma link C++ struct SilAssembly + ;
+
 #pragma link C++ class SimRunner + ;
 
 #pragma link C++ class SimSRIM + ;

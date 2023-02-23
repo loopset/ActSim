@@ -27,6 +27,14 @@ struct DriftInfo
     double X {};
     double Y {};
     double Z {};
+
+    DriftInfo() = default;
+    inline DriftInfo(double x, double y, double z)
+        : X(x), Y(y), Z(z)
+    {}
+    ~DriftInfo() = default;
+
+    void Print() const;
 };
 
 struct SilInfo
@@ -44,6 +52,42 @@ struct SilInfo
     
 };
 
+struct SilUnit
+{
+    unsigned int fIndex {};
+    double fLengthX {};
+    double fLengthY {};
+    double fLengthZ {};
+    
+    SilUnit() = default;
+    inline SilUnit(unsigned int type, double x, double y, double z)
+        : fIndex(type), fLengthX(x), fLengthY(y), fLengthZ(z)
+    {}
+    ~SilUnit() = default;
+
+    void Print() const;
+};
+
+struct SilAssembly
+{
+    unsigned int fIndex {};
+    SilUnit fUnit {};
+    std::map<int, std::pair<double, double>> fPlacements {};
+    std::pair<double, double> fOffset {-1, -1};
+    bool fIsAlongX {}; bool fIsAlongY {};
+    bool fHasXOffset {}; bool fHasYOffset {};
+    bool fIsMirrored {};
+
+    SilAssembly() = default;
+    SilAssembly(unsigned int index, const SilUnit& uniy, bool alongx = false, bool alongy = false);
+    ~SilAssembly() = default;
+    void SetAssemblyPlacements(const std::map<int, std::pair<double, double>>& placements) {fPlacements = placements;}
+    void SetOffsets(double xoffset = -1, double yoffset = -1);
+    void SetMirror(bool m){ fIsMirrored = m; }
+
+    void Print() const;
+};
+
 class SimGeometry
 {
  public:
@@ -57,6 +101,7 @@ class SimGeometry
     TGeoVolume* topVol {nullptr};
     TGeoVolume* driftVol {nullptr};
     std::map<int, TGeoVolume*> unitSilVolMap {};
+    std::map<unsigned int, TGeoVolume*> fAssembliesMap {};
     TGeoVolume* silAssembly {nullptr};
 
     //materials and mediums (not relevant, just we need some kind of material)
@@ -66,6 +111,7 @@ class SimGeometry
     //sizes (remember that they are half lengths)
     SilInfo silicons {};
     DriftInfo actar {};
+    std::map<unsigned int, SilAssembly> fAssembliesDataMap {};
 
     //for plotting
     TCanvas* canvas {nullptr};
@@ -76,17 +122,26 @@ class SimGeometry
 
     //setters
     void SetDriftSizes(double sizeX, double sizeY, double sizeZ);
+    void SetDrift(const DriftInfo& dr){actar = dr;}
     void SetSiliconPlacementInAssembly(std::map<int, std::map<int, std::pair<double, double>>> places) { silicons.AssemblyMap = places; }
+    [[deprecated("Rotation of unit silicon unavailable by now")]]
     void SetSiliconRotation(std::map<int, std::map<int, bool>> rota) { silicons.IsRotatedMap = rota; }
     void SetSiliconAssemblyOffset(double offsetX, double offsetY);
     void SetSiliconUnit(int type, double x, double y, double z);
+    void AddAssemblyData(const SilAssembly& ass){fAssembliesDataMap[ass.fIndex] = ass; }
     //getters
     DriftInfo GetDriftParameters() const { return actar; }
     SilInfo   GetSilParameters()   const { return silicons; }
-    
+
+    [[deprecated("Improved version for E796 simulation")]]
     void Construct();
 
+    void ConstructPlus();
+
+    [[deprecated("New function PrintGeometryPlus")]]
     void PrintGeometry();
+
+    void PrintGeometryPlus() const;
 
     void Draw();
 

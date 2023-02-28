@@ -132,6 +132,7 @@ class SimGeometry
     //getters
     DriftInfo GetDriftParameters() const { return actar; }
     SilInfo   GetSilParameters()   const { return silicons; }
+    double    GetAssemblyUnitWidth(unsigned int index);
 
     [[deprecated("Improved version for E796 simulation")]]
     void Construct();
@@ -164,7 +165,8 @@ class SimGeometry
     void WriteGeometry(std::string path, std::string fileName);
 
 private:
-    std::tuple<int, int, int> GetSilTypeAndIndexFromTString(TString& path);
+    std::tuple<int, int> GetSilTypeAndIndexFromTString(const TString& path);
+    int GetAssemblyIndexFromTString(const TString& path);
 };
 
 #endif

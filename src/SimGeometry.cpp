@@ -15,8 +15,12 @@
 #include "TView3D.h"
 #include "TAxis3D.h"
 #include "TFile.h"
+#include "TRegexp.h"
+
+#include <exception>
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -234,7 +238,7 @@ void SimGeometry::ConstructPlus()
     for(const auto& [index, ass] : fAssembliesDataMap)
     {
         const auto& silUnit {ass.fUnit};
-        unitSilVolMap[index] = manager->MakeBox(TString::Format("UnitSil%d", silUnit.fIndex),
+        unitSilVolMap[index] = manager->MakeBox(TString::Format("UnitSiliconType%d", silUnit.fIndex),
                                                 noneMedium,
                                                 silUnit.fLengthX,
                                                 silUnit.fLengthY,
@@ -276,7 +280,7 @@ void SimGeometry::ConstructPlus()
                         index,
                         new TGeoCombiTrans(assemblyTrans, nullRotation));
         //if it is mirrored
-        if(ass.fIsMirrored)//usuall
+        if(ass.fIsMirrored)//usually along y-direction
         {
             TGeoTranslation assemblyTrans2 {};
             auto previous {assemblyTrans.GetTranslation()};
@@ -317,6 +321,11 @@ void SimGeometry::PrintGeometryPlus() const
     }
 }
 
+double SimGeometry::GetAssemblyUnitWidth(unsigned int index)
+{
+    return fAssembliesDataMap.at(index).fUnit.fLengthX * 2;// in cm
+}
+
 void SimGeometry::Draw()
 {
     canvas = new TCanvas("c1", "Drawing geometry", 1);
@@ -329,17 +338,37 @@ void SimGeometry::Draw()
     //canvas->Close();
 }
 
-std::tuple<int, int, int> SimGeometry::GetSilTypeAndIndexFromTString(TString& path)
+int SimGeometry::GetAssemblyIndexFromTString(const TString& path)
 {
-    std::string pathString {path.Data()};
-    auto assemblyString { pathString.substr(pathString.find("SiliconAssembly"), 17)};
-    int assemblyIndex { std::stoi(std::string(1, assemblyString.back()))};
-    auto silString { pathString.substr(pathString.find("UnitSilicon"))};
-    auto underscore { silString.find("_")};
-    int silType  { std::stoi(silString.substr(underscore - 1, 1))};
-    int silIndex { std::stoi(silString.substr(underscore + 1))};
+    TRegexp legacy {"SiliconAssembly_."};
+    TString subLegacy {path(legacy)};
+    TRegexp regexp {"SiliconAssembly._."};
+    TString subStr {path(regexp)};
+    if(subLegacy.Length())
+    {
+        auto underscore {subLegacy.Index("_")};
+        return TString(subLegacy(underscore + 1)).Atoi();
+    }
+    else if(subStr.Length())
+    {
+        auto underscore {subStr.Index("_")};
+        return TString(subStr(underscore - 1)).Atoi();
+    }
+    else
+    {
+        throw std::runtime_error("Error: Legacy and new methods for AssemblyIndex at the same time");
+    }
+}
 
-    return std::make_tuple(assemblyIndex, silType, silIndex);
+std::tuple<int, int> SimGeometry::GetSilTypeAndIndexFromTString(const TString& path)
+{
+    TRegexp regexp {"UnitSiliconType._.."};
+    TString subStr {path(regexp)};
+    auto underscore { subStr.Index("_")};
+    int indexLength {(subStr.Length() - 1) - underscore};
+    int silType  {TString(subStr(underscore - 1)).Atoi()};
+    int silIndex {TString(subStr(underscore + 1, indexLength)).Atoi()};//selft determination of index length
+    return std::make_tuple(silType, silIndex);
 }
 
 void SimGeometry::PropagateTrackToSilicons(const XYZPoint& point,
@@ -364,10 +393,11 @@ void SimGeometry::PropagateTrackToSilicons(const XYZPoint& point,
         distance += manager->GetStep();
         if(path.Contains("SiliconAssembly"))
         {
-            auto values { GetSilTypeAndIndexFromTString(path)};
-            assemblyIndex = std::get<0>(values);
-            silType       = std::get<1>(values);
-            silIndex      = std::get<2>(values);
+            auto silValues { GetSilTypeAndIndexFromTString(path)};
+            assemblyIndex = GetAssemblyIndexFromTString(path);
+            silType       = std::get<0>(silValues);
+            silIndex      = std::get<1>(silValues);
+            if(debug)std::cout<<"Assembly = "<<assemblyIndex<<" silType = "<<silType<<" silIndex = "<<silIndex<<'\n';
             break;
         }
         else if(path.IsWhitespace())
@@ -409,6 +439,9 @@ void SimGeometry::ReadGeometry(std::string path, std::string fileName)
     infile->cd();
     silicons = *(infile->Get<SilInfo>("silicons"));
     actar    = *(infile->Get<DriftInfo>("drift"));
+    std::map<unsigned int , SilAssembly>* assemblyMapAux {};
+    infile->GetObject("assemblies", assemblyMapAux);
+    fAssembliesDataMap = *assemblyMapAux;
     infile->Close();
     delete infile;
 }
@@ -417,12 +450,13 @@ void SimGeometry::WriteGeometry(std::string path, std::string fileName)
 {
     manager->Export((path + fileName + ".root").c_str());
 
-    // //write parameters to file
-    // auto* outFile = new TFile((path + "parameters_" + fileName + ".root").c_str(), "recreate");
-    // outFile->cd();
-    // outFile->WriteObject(&silicons, "silicons");
-    // outFile->WriteObject(&actar, "drift");
-    // outFile->Close();
-    // delete outFile;
+    //write parameters to file
+    auto* outFile = new TFile((path + "parameters_" + fileName + ".root").c_str(), "recreate");
+    outFile->cd();
+    outFile->WriteObject(&silicons, "silicons");
+    outFile->WriteObject(&actar, "drift");
+    outFile->WriteObject(&fAssembliesDataMap, "assemblies");
+    outFile->Close();
+    delete outFile;
     
 }

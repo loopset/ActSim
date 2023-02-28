@@ -221,6 +221,18 @@ double SimKinematics::ReconstructExcitationEnergy(double argT3, double argTheta3
     return recfEex;
 }
 
+double SimKinematics::ReconstructTheta3CMFromLab(double T3, double theta3LabRads)
+{
+    double p3 { TMath::Sqrt(T3 * (T3 + 2.0 * fm3))};
+    //std::cout<<"p3: "<<p3<<'\n';
+    double E3Lab { T3 + fm3};//TOTAL energy
+    double E3CM { 0.5 * (fEcm * fEcm + fm3 * fm3 - (fm4 + fEex) * (fm4 + fEex)) / fEcm};
+    double p3CM { TMath::Sqrt(E3CM * E3CM - fm3 * fm3)};
+    double cosTheta {( E3Lab / fGamma - E3CM) / (TMath::Abs(fBeta) * p3CM)};
+    
+    return TMath::ACos(cosTheta) * TMath::RadToDeg();   
+}
+
 double SimKinematics::ComputeTheoreticalT3(double argTheta3LabRads, const std::string& sol)
 {
     double A { (TMath::Power(fEcm, 2) + fm3 * fm3 - (fm4 + fEex) * (fm4 + fEex)) / (2.0 * fGamma * fEcm)};

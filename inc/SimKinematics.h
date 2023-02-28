@@ -59,6 +59,7 @@ public:
     void ComputeRecoilKinematics(double thetaCMRads, double phiCMRads,
                                  int anglesFrom = 4, bool computeBoth = false);
     double ReconstructBeamEnergyFromLabKinematics(double T3, double theta3LabRads);
+    double ReconstructTheta3CMFromLab(double T3, double theta3LabRads);
     double ReconstructExcitationEnergy(double argT3, double argTheta3LabRads);
     double ComputeTheoreticalT3(double argTheta3LabRads, const std::string& sol = {"pos"});
     double ComputeMissingMass(double argT3, double argTheta3LabRads, double argPhi3Rads, double Tbeam,
@@ -85,6 +86,7 @@ public:
     double GetEex() const { return fEex; }
     double GetMass(unsigned int index) const;
     std::tuple<double, double, double, double> GetMasses() const;
+    FourVector GetPInitialLab() const { return fPInitialLab; }
 	
 private:
 	void SetRecoilsCMKinematicsThrough3(double fTheta3CMRads, double phi3CMRads);

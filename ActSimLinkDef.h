@@ -34,4 +34,7 @@
 
 #pragma link C++ class SimHistos + ;
 
+//classes for TGenPhaseSpace wrapper
+#pragma link C++ class SimGenPhaseSpace + ;
+
 #endif

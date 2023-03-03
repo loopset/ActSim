@@ -92,7 +92,7 @@ SimGeometry::SimGeometry()
     TGeoManager::SetDefaultUnits(TGeoManager::kRootUnits);
     TGeoManager::LockDefaultUnits(true);
     manager = new TGeoManager("manager", "A simple ACTAR geometry");
-    gGeoManager->SetVerboseLevel(1);
+    gGeoManager->SetVerboseLevel(0);
 
     //naive material since we dont compute physics here
     noneMaterial = new TGeoMaterial("none", 0.0, 0.0, 0.0);
@@ -277,7 +277,7 @@ void SimGeometry::ConstructPlus()
         else if(ass.fHasXOffset && ass.fHasYOffset)
             assemblyTrans = {actar.X + ass.fOffset.first, actar.Y + ass.fOffset.second, 0.};
         topVol->AddNode(fAssembliesMap.at(index),
-                        index,
+                        1,//copy number 1
                         new TGeoCombiTrans(assemblyTrans, nullRotation));
         //if it is mirrored
         if(ass.fIsMirrored)//usually along y-direction
@@ -288,7 +288,7 @@ void SimGeometry::ConstructPlus()
             assemblyTrans2.SetDy(-1 * previous[1]);
             assemblyTrans2.SetDz(-1 * previous[2]);
             topVol->AddNode(fAssembliesMap.at(index),
-                            -1 * index,
+                            -1,//mirrored copy
                             new TGeoCombiTrans(assemblyTrans2, sideRot));
         }
     }
@@ -408,7 +408,46 @@ void SimGeometry::PropagateTrackToSilicons(const XYZPoint& point,
             break;
         }
     }
-    
+}
+
+void SimGeometry::PropagateTrackToSiliconArray(const XYZPoint &initPoint,
+                                               const XYZVector &direction,
+                                               int assemblyIndex,
+                                               double& distance,
+                                               int &silType,
+                                               int &silIndex,
+                                               XYZPoint &newPoint,
+                                               bool debug)
+{
+    //set to default values
+    silType  = -1;
+    silIndex = -1;
+    //initializing state
+    manager->InitTrack(initPoint.X(), initPoint.Y(), initPoint.Z(),
+                       direction.X(), direction.Y(), direction.Z());
+    TString path { manager->GetPath()};
+    if(debug)std::cout<<" Path at 0: "<<path<<'\n';
+    for(int i = 1; i < 6; i++)
+    {
+        manager->FindNextBoundaryAndStep();
+        path = manager->GetPath();
+        if(debug)std::cout<<"  Path at "<<i<<" : "<<path<<'\n';
+        distance += manager->GetStep();
+        if(path.Contains(TString::Format("SiliconAssembly%d", assemblyIndex)))
+        {
+            auto silValues { GetSilTypeAndIndexFromTString(path)};
+            silType       = std::get<0>(silValues);
+            silIndex      = std::get<1>(silValues);
+            if(debug)std::cout<<"   Fixed ass. = "<<assemblyIndex<<" silType = "<<silType<<" silIndex = "<<silIndex<<'\n';
+            break;
+        }
+        else if(path.IsWhitespace())//out of world
+        {
+            break;
+        }
+    }
+    //and return new point!
+    newPoint = initPoint + distance * direction.Unit();
 }
 
 void SimGeometry::CheckIfStepIsInsideDriftChamber(const XYZPoint &point,

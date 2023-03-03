@@ -130,7 +130,7 @@ class SimGeometry
     void SetSiliconUnit(int type, double x, double y, double z);
     void AddAssemblyData(const SilAssembly& ass){fAssembliesDataMap[ass.fIndex] = ass; }
     //getters
-    DriftInfo GetDriftParameters() const { return actar; }
+    const DriftInfo& GetDriftParameters() const { return actar; }
     SilInfo   GetSilParameters()   const { return silicons; }
     double    GetAssemblyUnitWidth(unsigned int index);
 
@@ -153,6 +153,15 @@ class SimGeometry
                                   int& silType,
                                   int& silIndex,
                                   bool debug = false);
+
+    void PropagateTrackToSiliconArray(const XYZPoint& initPoint,
+                                      const XYZVector& direction,
+                                      int assemblyIndex,
+                                      double& distance,
+                                      int& silType,
+                                      int& silIndex,
+                                      XYZPoint& newPoint,
+                                      bool debug = false);
 
     void CheckIfStepIsInsideDriftChamber(const XYZPoint& point,
                                          const XYZVector& direction,
